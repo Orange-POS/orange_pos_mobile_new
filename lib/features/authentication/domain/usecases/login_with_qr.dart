@@ -1,7 +1,7 @@
-import '../entities/login_session.dart';
+import 'package:odoo_inventory/features/authentication/domain/entities/login_session.dart';
 
-class LoginWithQr{
-  LoginSession call(String qrData){
+class LoginWithQr {
+  LoginSession call(String qrData) {
     return LoginSession(qrdata: qrData);
   }
 }

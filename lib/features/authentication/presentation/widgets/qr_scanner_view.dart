@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class QrScannerView extends StatelessWidget {
-  const QrScannerView({
-    required this.onQrDetected,
-    super.key,
-  });
+  const new({required this.onQrDetected, super.key});
 
   final ValueChanged<String> onQrDetected;
 

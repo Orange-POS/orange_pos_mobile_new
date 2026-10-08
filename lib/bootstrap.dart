@@ -4,21 +4,12 @@ import 'dart:developer';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-Future<void> bootstrap(
-  FutureOr<Widget> Function() builder,
-) async {
+Future<void> bootstrap(FutureOr<Widget> Function() builder) async {
   FlutterError.onError = (details) {
-    log(
-      details.exceptionAsString(),
-      stackTrace: details.stack,
-    );
+    log(details.exceptionAsString(), stackTrace: details.stack);
   };
 
   final app = await builder();
 
-  runApp(
-    ProviderScope(
-      child: app,
-    ),
-  );
+  runApp(ProviderScope(child: app));
 }

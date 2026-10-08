@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 class QrLoginButton extends StatelessWidget {
-  const QrLoginButton({
-    required this.onPressed,
-    super.key,
-  });
+  const new({required this.onPressed, super.key});
 
   final VoidCallback onPressed;
 

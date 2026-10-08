@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
-class HomeAppBar extends StatelessWidget
-    implements PreferredSizeWidget {
-  const HomeAppBar({
-    required this.onLogout,
-    super.key,
-  });
+class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const new({required this.onLogout, super.key});
 
   final VoidCallback onLogout;
 
@@ -14,16 +10,11 @@ class HomeAppBar extends StatelessWidget
     return AppBar(
       title: const Text('Home'),
       actions: [
-        IconButton(
-          onPressed: onLogout,
-          icon: const Icon(Icons.logout),
-        ),
+        IconButton(onPressed: onLogout, icon: const Icon(Icons.logout)),
       ],
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(
-        kToolbarHeight,
-      );
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

@@ -1,8 +1,4 @@
 class LoginSession {
+  const new({required this.qrdata});
   final String qrdata;
-  const LoginSession({
-    required this.qrdata,
-  });
-
-  
 }
