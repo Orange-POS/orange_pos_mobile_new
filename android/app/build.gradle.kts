@@ -1,5 +1,6 @@
-import java.util.Properties
+
 import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -7,14 +8,62 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// --------------------------------------------------
+// Android release signing configuration
+// --------------------------------------------------
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
+
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    FileInputStream(keystorePropertiesFile).use {
+        keystoreProperties.load(it)
+    }
 }
+
+fun signingValue(
+    environmentVariable: String,
+    propertyName: String,
+): String? {
+    return System.getenv(environmentVariable)
+        ?.takeIf { it.isNotBlank() }
+        ?: keystoreProperties.getProperty(propertyName)
+            ?.takeIf { it.isNotBlank() }
+}
+
+val releaseKeystorePath = signingValue(
+    "ANDROID_KEYSTORE_PATH",
+    "storeFile",
+)
+
+val releaseKeyAlias = signingValue(
+    "ANDROID_KEYSTORE_ALIAS",
+    "keyAlias",
+)
+
+val releaseKeyPassword = signingValue(
+    "ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD",
+    "keyPassword",
+)
+
+val releaseStorePassword = signingValue(
+    "ANDROID_KEYSTORE_PASSWORD",
+    "storePassword",
+)
+
+val hasReleaseSigning =
+    releaseKeystorePath != null &&
+    releaseKeyAlias != null &&
+    releaseKeyPassword != null &&
+    releaseStorePassword != null
+
+// --------------------------------------------------
+// Android application configuration
+// --------------------------------------------------
 
 android {
     namespace = "com.example.verygoodcore.odoo_inventory"
+
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -28,66 +77,125 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.verygoodcore.odoo_inventory"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // --------------------------------------------------
+    // Signing configurations
+    // --------------------------------------------------
+
     signingConfigs {
         create("release") {
-            if (System.getenv("ANDROID_KEYSTORE_PATH") != null) {
-                storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH"))
-                keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD")
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                
-            } else {
-                keyAlias = keystoreProperties["keyAlias"] as String?
-                keyPassword = keystoreProperties["keyPassword"] as String?
-                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-                storePassword = keystoreProperties["storePassword"] as String?
+            if (hasReleaseSigning) {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
 
+    // --------------------------------------------------
+    // Product flavors
+    // --------------------------------------------------
+
     flavorDimensions += "default"
+
     productFlavors {
-        create("production") {
-            dimension = "default"
-            applicationIdSuffix = ""
-            manifestPlaceholders["appName"] = "Odoo Inventory"
-        }
-        create("staging") {
-            dimension = "default"
-            applicationIdSuffix = ".stg"
-            manifestPlaceholders["appName"] = "[STG] Odoo Inventory"
-        }
         create("development") {
             dimension = "default"
+
             applicationIdSuffix = ".dev"
-            manifestPlaceholders["appName"] = "[DEV] Odoo Inventory"
+
+            manifestPlaceholders["appName"] =
+                "[DEV] Odoo Inventory"
+        }
+
+        create("staging") {
+            dimension = "default"
+
+            applicationIdSuffix = ".stg"
+
+            manifestPlaceholders["appName"] =
+                "[STG] Odoo Inventory"
+        }
+
+        create("production") {
+            dimension = "default"
+
+            applicationIdSuffix = ""
+
+            manifestPlaceholders["appName"] =
+                "Odoo Inventory"
         }
     }
 
+    // --------------------------------------------------
+    // Build types
+    // --------------------------------------------------
+
     buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android.txt"),
-                "proguard-rules.pro"
-            )
-        }
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
         }
+
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
+
+            isMinifyEnabled = true
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android.txt"),
+                "proguard-rules.pro",
+            )
+        }
     }
 }
+
+// --------------------------------------------------
+// Validate signing only for release builds
+// --------------------------------------------------
+
+gradle.taskGraph.whenReady {
+    val releaseBuildRequested = allTasks.any {
+        it.name.contains("Release", ignoreCase = false) &&
+            (
+                it.name.startsWith("assemble") ||
+                it.name.startsWith("bundle") ||
+                it.name.startsWith("package")
+            )
+    }
+
+    if (releaseBuildRequested) {
+        check(hasReleaseSigning) {
+            """
+            Android release signing configuration is missing.
+
+            Configure signing using either:
+
+            1. GitHub Actions environment variables:
+               ANDROID_KEYSTORE_PATH
+               ANDROID_KEYSTORE_ALIAS
+               ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD
+               ANDROID_KEYSTORE_PASSWORD
+
+            2. Local android/key.properties file.
+
+            Release builds require a permanent signing key.
+            """.trimIndent()
+        }
+    }
+}
+
+// --------------------------------------------------
+// Flutter configuration
+// --------------------------------------------------
 
 flutter {
     source = "../.."
