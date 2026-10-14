@@ -1,0 +1,113 @@
+
+name: Android APK Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Flutter Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Flutter static analysis
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Run Flutter tests
+        run: flutter test --coverage
+
+  build-apk:
+    name: Build APK - ${{ matrix.flavor }}
+    needs: validate
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: development
+            target: lib/main_development.dart
+          - flavor: staging
+            target: lib/main_staging.dart
+          - flavor: production
+            target: lib/main_production.dart
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build release APK
+        run: |
+          flutter build apk \
+            --release \
+            --flavor "${{ matrix.flavor }}" \
+            -t "${{ matrix.target }}"
+
+      - name: Prepare APK artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+
+          APK_PATH="build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk"
+
+          if [ ! -f "$APK_PATH" ]; then
+            echo "Expected APK not found: $APK_PATH"
+            find build/app/outputs -name '*.apk' -print || true
+            exit 1
+          fi
+
+          cp "$APK_PATH" \
+            "dist/orangepos-${{ matrix.flavor }}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orangepos-${{ matrix.flavor }}-apk
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 7
