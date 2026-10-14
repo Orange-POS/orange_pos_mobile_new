@@ -21,14 +21,17 @@ dependencies:
   intl: ^0.20.2
   material_ui: ^1.1.1
   mobile_scanner: ^7.4.2
-
+  riverpod_annotation: ^4.0.7
 dev_dependencies:
   bloc_lint: ^0.4.2
   bloc_test: ^10.0.0
   bloc_tools: ^0.1.0-dev.24
+  build: 4.0.9
+  build_runner: ">=2.13.1 <2.16.0"
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.5
+  riverpod_generator: ^4.0.9
   very_good_analysis: ^11.0.0
 
 flutter:
